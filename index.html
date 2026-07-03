@@ -491,7 +491,7 @@
   "use strict";
 
   // Bumped on every user-requested change
-  var VERSION = 23;
+  var VERSION = 24;
 
   // ---------- LCD setup ----------
   var W = 256, H = 144, GROUND = 120;
@@ -766,6 +766,14 @@
     tGlobal += dt;
     if (state === "intro") {
       introT -= dt;
+      // let Yi take position while the Teemos approach
+      var mvI = (keys.left || padDir < 0 ? -1 : 0) + (keys.right || padDir > 0 ? 1 : 0);
+      player.walking = false;
+      if (mvI !== 0) {
+        player.x = Math.max(8, Math.min(W - 8, player.x + mvI * (player.rT > 0 ? 92 : 55) * dt));
+        player.dir = mvI;
+        player.walking = true;
+      }
       if (introT <= 0) state = "play";
       return;
     }
