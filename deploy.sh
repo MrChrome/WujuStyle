@@ -13,6 +13,9 @@ aws s3 cp index.html "s3://$BUCKET/index.html" \
 aws s3 sync audio "s3://$BUCKET/audio" \
   --cache-control "public, max-age=86400"
 
+aws s3 sync img "s3://$BUCKET/img" \
+  --cache-control "public, max-age=86400"
+
 aws cloudfront create-invalidation \
   --distribution-id "$DISTRIBUTION" \
   --paths "/index.html" "/" \

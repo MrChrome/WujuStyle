@@ -39,7 +39,11 @@
   .device {
     width: min(680px, 100%);
     background:
+      linear-gradient(180deg, rgba(16,26,14,0.45) 0%, rgba(8,12,7,0.62) 100%),
+      url("img/shell.jpg") center / cover no-repeat,
       radial-gradient(140% 100% at 50% 0%, var(--shell-hi) 0%, var(--shell) 45%, var(--shell-dark) 100%);
+    position: relative;
+    overflow: hidden;
     border-radius: 56px 56px 72px 72px;
     box-shadow:
       inset 0 3px 2px rgba(255,255,255,0.22),
@@ -60,35 +64,36 @@
   .logo { flex: 1; text-align: center; }
   .logo h1 {
     margin: 0;
-    font-family: Copperplate, "Copperplate Gothic Bold", Georgia, serif;
-    font-size: clamp(20px, 4.6vw, 32px);
-    letter-spacing: 0.06em;
-    color: var(--ink);
-    text-shadow: 0 1px 0 rgba(255,255,255,0.28);
+    font-family: Impact, "Arial Narrow", "Helvetica Neue Condensed", sans-serif;
+    font-weight: 400;
+    font-size: clamp(24px, 5.4vw, 38px);
+    letter-spacing: 0.05em;
     text-wrap: balance;
-  }
-  .logo .sub {
-    margin: 2px 0 0;
-    font-family: Copperplate, "Copperplate Gothic Bold", Georgia, serif;
-    font-size: clamp(11px, 2.2vw, 15px);
-    letter-spacing: 0.22em;
-    color: var(--ink);
-    text-shadow: 0 1px 0 rgba(255,255,255,0.22);
+    /* Predator-credits treatment: solid red up top, dissolving into
+       thin vertical drip lines toward the baseline */
+    background:
+      linear-gradient(180deg, #ff2418 0%, #ff2418 56%, rgba(255,36,24,0) 92%),
+      repeating-linear-gradient(90deg, #c41408 0 2px, rgba(196,20,8,0) 2px 5px);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 8px rgba(255,30,20,0.35));
   }
   .brand {
     width: 118px;
     font-size: 8px;
     line-height: 1.5;
     letter-spacing: 0.08em;
-    color: rgba(20,16,10,0.75);
+    color: rgba(230,220,190,0.75);
     text-align: right;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
   }
   .brand .tm {
     font-family: Copperplate, Georgia, serif;
     font-size: 17px;
     letter-spacing: 0.12em;
-    color: var(--ink);
-    text-shadow: 0 1px 0 rgba(255,255,255,0.25);
+    color: #e6dcbe;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.85);
   }
   .speaker {
     width: 118px; height: 58px;
@@ -103,6 +108,18 @@
     display: flex;
     align-items: center;
     gap: 16px;
+    position: relative;
+    z-index: 1;
+  }
+  .hero-cut {
+    position: absolute;
+    left: 50%;
+    bottom: -30px;
+    transform: translateX(-50%);
+    height: 260px;
+    z-index: 0;
+    pointer-events: none;
+    filter: drop-shadow(0 4px 14px rgba(0,0,0,0.65));
   }
   .side-left {
     display: flex;
@@ -127,7 +144,8 @@
   .side-left .lbl {
     font-size: 9px;
     letter-spacing: 0.14em;
-    color: rgba(20,16,10,0.8);
+    color: rgba(230,220,190,0.85);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
     margin-top: -6px;
   }
   .side-left .lbl.off { text-decoration: line-through; opacity: 0.5; }
@@ -173,6 +191,8 @@
     gap: 18px;
     margin-top: 22px;
     flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
   }
   .left-cluster { display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .start-btn {
@@ -185,7 +205,7 @@
     cursor: pointer;
   }
   .start-btn:active { transform: translateY(1px); }
-  .start-lbl { font-size: 9px; letter-spacing: 0.16em; color: rgba(20,16,10,0.8); margin-top: -6px; }
+  .start-lbl { font-size: 9px; letter-spacing: 0.16em; color: rgba(230,220,190,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.8); margin-top: -6px; }
 
   .dpad {
     --u: 40px;
@@ -316,6 +336,7 @@
     .cap { width: 46px; height: 46px; border-radius: 10px; }
     .cap canvas { width: 28px; height: 28px; }
     .ability .cd-bar { width: 46px; }
+    .hero-cut { height: 120px; bottom: -10px; }
   }
   /* Landscape phones: Game Gear arrangement — controls flank a bigger screen */
   @media (orientation: landscape) and (max-height: 520px) {
@@ -332,15 +353,26 @@
     .device-top { grid-area: top; margin-bottom: 2px; }
     .speaker, .brand { display: none; }
     .logo h1 { font-size: 15px; }
-    .logo .sub { font-size: 8px; }
     .mid, .controls { display: contents; }
     .side-left { display: none; }
     .bezel { grid-area: screen; padding: 10px; }
     .left-cluster { grid-area: left; margin: 0; }
-    .right-cluster { grid-area: right; flex-direction: column; align-items: center; gap: 10px; }
+    .right-cluster { grid-area: right; flex-direction: column; align-items: center; gap: 10px; align-self: start; }
     .ability { width: auto; gap: 4px; }
     .ab-label { display: none; }
     .dpad { --u: 34px; }
+    .left-cluster, .right-cluster, .bezel { position: relative; z-index: 1; }
+    /* Tone cameo: head-and-shoulders crop peeking from the bottom-right corner */
+    .hero-cut {
+      display: block;
+      left: auto; right: 4px; bottom: 2px;
+      transform: none;
+      height: 104px; width: 92px;
+      object-fit: cover;
+      object-position: 56% 0%;
+    }
+    .manual, .rotate-hint { display: none; }
+    body { padding: 4px 4px 8px; }
   }
 
   .rotate-hint { display: none; }
@@ -376,12 +408,11 @@
   <div class="device-top">
     <div class="speaker" aria-hidden="true"></div>
     <div class="logo">
-      <h1>MASTER YI:</h1>
-      <p class="sub">THE WUJU BLADESMAN</p>
+      <h1>PREDATOR TEEMO</h1>
     </div>
     <div class="brand">
       <div class="tm">WUJU®</div>
-      <span id="verLbl"></span><br>WUJU ELECTRONICS LTD.<br>MADE IN IONIA
+      <span id="verLbl"></span><br>WUJU ELECTRONICS LTD.<br>MADE IN GROSSE POINTE
     </div>
   </div>
 
@@ -428,6 +459,7 @@
       </div>
     </div>
   </div>
+  <img class="hero-cut" src="img/man.png" alt="" aria-hidden="true">
 </div>
 
 <p class="rotate-hint"><span class="ph" aria-hidden="true"></span>Rotate your phone for a bigger screen</p>
@@ -459,7 +491,7 @@
   "use strict";
 
   // Bumped on every user-requested change
-  var VERSION = 15;
+  var VERSION = 23;
 
   // ---------- LCD setup ----------
   var W = 256, H = 144, GROUND = 120;
@@ -1278,8 +1310,15 @@
     var s = Math.min(1, vw / r.width, vh / r.height);
     if (s < 1) deviceEl.style.zoom = s;
   }
-  window.addEventListener("resize", fitDevice);
-  if (window.visualViewport) window.visualViewport.addEventListener("resize", fitDevice);
+  // iOS fires resize before rotation layout settles — refit again shortly after
+  function fitSoon() {
+    fitDevice();
+    requestAnimationFrame(fitDevice);
+    setTimeout(fitDevice, 350);
+  }
+  window.addEventListener("resize", fitSoon);
+  window.addEventListener("orientationchange", fitSoon);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", fitSoon);
 
   // ---------- Main loop ----------
   resetPlayer();

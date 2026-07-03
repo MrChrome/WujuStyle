@@ -1,0 +1,5 @@
+# macOS cruft
+.DS_Store
+
+# Unprocessed source photo (the deployed cutout lives in img/man.png)
+tone.png
