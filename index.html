@@ -375,6 +375,11 @@
     body { padding: 4px 4px 8px; }
   }
 
+  /* Touch devices play fullscreen — the printed manual is desktop-only */
+  @media (pointer: coarse), (max-width: 900px) and (max-height: 520px) {
+    .manual { display: none; }
+  }
+
   .rotate-hint { display: none; }
   @media (max-width: 520px) and (orientation: portrait) {
     .rotate-hint {
@@ -492,7 +497,7 @@
   "use strict";
 
   // Bumped on every user-requested change
-  var VERSION = 26;
+  var VERSION = 27;
 
   // ---------- LCD setup ----------
   var W = 256, H = 144, GROUND = 120;
