@@ -25,8 +25,8 @@ TABLE = boto3.resource("dynamodb").Table(os.environ["TABLE"])
 DAILY_IP_CAP = 20
 SESSION_MAX_AGE = 7200
 
-NAME_RE = re.compile(r"^[A-Z]{3}$")
-NAME_BLOCKLIST = {"ASS", "FUK", "FUC", "FCK", "SHT", "CNT", "DIK", "COK", "FAG", "NIG", "KKK"}
+NAME_RE = re.compile(r"^[A-Z][A-Z ]{0,9}$")
+NAME_BLOCKLIST = {"ASS", "FUK", "FUC", "FCK", "CUNT", "SHIT", "DICK", "COCK", "FAG", "NIG", "KKK"}
 
 
 def wave_is_boss(w):
@@ -96,7 +96,9 @@ def handler(event, _ctx):
         except (ValueError, TypeError):
             return resp(400, {"error": "bad request"})
 
-        if not NAME_RE.match(name) or name in NAME_BLOCKLIST:
+        name = " ".join(name.split())  # trim + collapse whitespace
+        compact = name.replace(" ", "")
+        if not NAME_RE.match(name) or len(name) > 10 or any(b in compact for b in NAME_BLOCKLIST):
             return resp(400, {"error": "bad name"})
         if not (1 <= wave <= 80) or not (0 < score <= max_score(wave)):
             return resp(400, {"error": "implausible score"})

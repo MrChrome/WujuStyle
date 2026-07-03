@@ -483,8 +483,7 @@
     <p>Teemos spit blinding darts — while blind, your swings <em>MISS</em>.</p>
     <p>Trapper Teemos sow noxious mushrooms. Do not step on them.</p>
     <p>Every 4th wave, the Swift Scout himself takes the field.</p>
-    <p>Top scores go to the global scoreboard — enter your initials with the D-pad.</p>
-    <p>Top scores go to the global scoreboard — enter your initials with the D-pad.</p>
+    <p>Top scores go to the global scoreboard — enter a name up to 10 letters.</p>
   </div>
 </div>
 
@@ -493,7 +492,7 @@
   "use strict";
 
   // Bumped on every user-requested change
-  var VERSION = 25;
+  var VERSION = 26;
 
   // ---------- LCD setup ----------
   var W = 256, H = 144, GROUND = 120;
@@ -631,8 +630,8 @@
   var score = 0, wave = 0, tGlobal = 0, introT = 0;
 
   // --- global scoreboard (API in aws/scoreboard/, served via /api/*) ---
-  var sessionToken = null, leaderboard = null, scoreSaved = "";
-  var entry = null; // {letters:[0-25 x3], slot:0-2} during initials entry
+  var sessionToken = null, leaderboard = null, scoreSaved = "", lastSubmitted = null;
+  var entry = null; // {letters:[0-25 letters, 26=space; x10], slot:0-9} during name entry
   var lastInitials = "AAA";
   try { lastInitials = localStorage.getItem("wuju-initials") || "AAA"; } catch (e) {}
 
@@ -744,10 +743,11 @@
     var qualifies = sessionToken && score > 0 &&
       (!leaderboard || leaderboard.length < 10 || score > leaderboard[leaderboard.length - 1].score);
     if (qualifies) {
-      entry = { letters: [0, 0, 0], slot: 0 };
-      for (var i = 0; i < 3; i++) {
-        var c = lastInitials.charCodeAt(i) - 65;
-        entry.letters[i] = (c >= 0 && c <= 25) ? c : 0;
+      entry = { letters: [], slot: 0 };
+      for (var i = 0; i < 10; i++) {
+        var ch = i < lastInitials.length ? lastInitials.charAt(i) : " ";
+        var c = ch.charCodeAt(0) - 65;
+        entry.letters.push((c >= 0 && c <= 25) ? c : 26);
       }
       state = "entry";
     } else {
@@ -758,22 +758,25 @@
 
   function entryCycle(d) {
     if (!entry) return;
-    entry.letters[entry.slot] = (entry.letters[entry.slot] + d + 26) % 26;
+    entry.letters[entry.slot] = (entry.letters[entry.slot] + d + 27) % 27;
     sfx.click();
   }
   function entrySlot(d) {
     if (!entry) return;
-    entry.slot = Math.max(0, Math.min(2, entry.slot + d));
+    entry.slot = Math.max(0, Math.min(9, entry.slot + d));
     sfx.click();
   }
   function submitScore() {
     if (!entry) return;
-    var name = entry.letters.map(function (i) { return String.fromCharCode(65 + i); }).join("");
+    var name = entry.letters.map(function (i) { return i === 26 ? " " : String.fromCharCode(65 + i); }).join("");
+    name = name.replace(/^ +| +$/g, "").replace(/ +/g, " ");
+    if (!name) name = "YI";
     lastInitials = name;
     try { localStorage.setItem("wuju-initials", name); } catch (e) {}
     var payload = JSON.stringify({ token: sessionToken, name: name, score: score, wave: wave });
+    lastSubmitted = { name: name, score: score };
     entry = null;
-    state = "over";
+    state = "board";
     scoreSaved = "SAVING...";
     fetch("/api/scores", { method: "POST", headers: { "content-type": "application/json" }, body: payload })
       .then(function (r) { scoreSaved = r.ok ? "SAVED TO SCOREBOARD" : "REJECTED"; fetchScores(); })
@@ -1167,6 +1170,20 @@
     }
   }
 
+  function drawBoard(headerY, rowY, rowH) {
+    centerText("TOP WUJU WARRIORS", headerY, 1, INK);
+    var rows = Math.min(leaderboard ? leaderboard.length : 0, 8);
+    for (var i = 0; i < rows; i++) {
+      var it = leaderboard[i];
+      var nm = it.name;
+      while (nm.length < 10) nm += " ";
+      var rk = String(i + 1);
+      if (rk.length < 2) rk = " " + rk;
+      var mine = lastSubmitted && it.name === lastSubmitted.name && it.score === lastSubmitted.score;
+      drawText(rk + " " + nm + " " + it.score, 70, rowY + i * rowH, 1, (mine || (!lastSubmitted && i === 0)) ? INK : MID);
+    }
+  }
+
   function drawHUD() {
     // HP
     drawText("HP", 3, 3, 1, INK);
@@ -1195,12 +1212,7 @@
     if (state === "title") {
       var showBoard = leaderboard && leaderboard.length > 0 && Math.floor(tGlobal / 4) % 2 === 1;
       if (showBoard) {
-        centerText("TOP WUJU WARRIORS", 6, 1, INK);
-        var rows = Math.min(leaderboard.length, 8);
-        for (var r0 = 0; r0 < rows; r0++) {
-          var it = leaderboard[r0];
-          drawText((r0 + 1) + " " + it.name + " " + it.score, 78, 18 + r0 * 11, 1, r0 === 0 ? INK : MID);
-        }
+        drawBoard(6, 18, 11);
         if (Math.floor(tGlobal * 2) % 2 === 0) centerText("PRESS START", 112, 1, INK);
       } else {
         centerText("MASTER YI", 22, 2, INK);
@@ -1218,12 +1230,13 @@
       centerText("JUNGLE LEGEND!", 22, 1, INK);
       centerText("SCORE " + score + "  WAVE " + wave, 32, 1, MID);
       centerText("ENTER YOUR NAME", 46, 1, MID);
-      var x0 = Math.round((W - (3 * 14 - 6)) / 2);
-      for (var s3 = 0; s3 < 3; s3++) {
+      var x0 = Math.round((W - (10 * 14 - 6)) / 2);
+      for (var s3 = 0; s3 < 10; s3++) {
         var lx = x0 + s3 * 14;
         var active = s3 === entry.slot;
-        if (!active || Math.floor(tGlobal * 3) % 3 !== 0) {
-          drawText(String.fromCharCode(65 + entry.letters[s3]), lx, 60, 2, INK);
+        var li = entry.letters[s3];
+        if (li !== 26 && (!active || Math.floor(tGlobal * 3) % 3 !== 0)) {
+          drawText(String.fromCharCode(65 + li), lx, 60, 2, INK);
         }
         if (active) {
           px(lx + 2, 55, 3, 1, MID); px(lx + 3, 54, 1, 1, MID);   // up caret
@@ -1231,8 +1244,16 @@
         }
         px(lx, 72, 7, 1, active ? INK : MID);
       }
-      centerText("D-PAD PICKS LETTERS", 92, 1, FAINT);
+      centerText("TYPE OR USE D-PAD", 92, 1, FAINT);
       if (Math.floor(tGlobal * 2) % 2 === 0) centerText("START TO SAVE", 104, 1, INK);
+      return;
+    }
+
+    if (state === "board") {
+      centerText("GAME OVER", 4, 1, MID);
+      drawBoard(14, 26, 10);
+      if (scoreSaved) centerText(scoreSaved, 110, 1, MID);
+      if (Math.floor(tGlobal * 2) % 2 === 0) centerText("PRESS START", 122, 1, INK);
       return;
     }
 
@@ -1272,7 +1293,7 @@
   function pressStart() {
     sfx.click();
     primeHut();
-    if (state === "title" || state === "over") {
+    if (state === "title" || state === "over" || state === "board") {
       newGame();
     } else if (state === "entry") {
       submitScore();
@@ -1352,6 +1373,8 @@
         else if (k === "arrowleft") entrySlot(-1);
         else if (k === "arrowright") entrySlot(1);
         else if (k === "enter") submitScore();
+        else if (k === " ") { entry.letters[entry.slot] = 26; entrySlot(1); }
+        else if (k === "backspace") { entry.letters[entry.slot] = 26; entrySlot(-1); }
         else if (/^[a-z]$/.test(k)) {
           entry.letters[entry.slot] = k.charCodeAt(0) - 97;
           entrySlot(1);
