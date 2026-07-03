@@ -3,3 +3,6 @@
 
 # Unprocessed source photo (the deployed cutout lives in img/man.png)
 tone.png
+
+# Lambda build artifact (rebuilt from lambda.py by aws/scoreboard notes in README)
+aws/scoreboard/fn.zip

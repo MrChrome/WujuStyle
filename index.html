@@ -483,6 +483,8 @@
     <p>Teemos spit blinding darts — while blind, your swings <em>MISS</em>.</p>
     <p>Trapper Teemos sow noxious mushrooms. Do not step on them.</p>
     <p>Every 4th wave, the Swift Scout himself takes the field.</p>
+    <p>Top scores go to the global scoreboard — enter your initials with the D-pad.</p>
+    <p>Top scores go to the global scoreboard — enter your initials with the D-pad.</p>
   </div>
 </div>
 
@@ -491,7 +493,7 @@
   "use strict";
 
   // Bumped on every user-requested change
-  var VERSION = 24;
+  var VERSION = 25;
 
   // ---------- LCD setup ----------
   var W = 256, H = 144, GROUND = 120;
@@ -628,6 +630,19 @@
   try { hi = parseInt(localStorage.getItem("wuju-hiscore") || "0", 10) || 0; } catch (e) {}
   var score = 0, wave = 0, tGlobal = 0, introT = 0;
 
+  // --- global scoreboard (API in aws/scoreboard/, served via /api/*) ---
+  var sessionToken = null, leaderboard = null, scoreSaved = "";
+  var entry = null; // {letters:[0-25 x3], slot:0-2} during initials entry
+  var lastInitials = "AAA";
+  try { lastInitials = localStorage.getItem("wuju-initials") || "AAA"; } catch (e) {}
+
+  function fetchScores() {
+    fetch("/api/scores").then(function (r) { return r.json(); })
+      .then(function (d) { leaderboard = d.scores || []; })
+      .catch(function () {});
+  }
+  fetchScores();
+
   var player, enemies, darts, shrooms, floaters, slashes, booms, spawnQueue, spawnT;
 
   function resetPlayer() {
@@ -645,6 +660,10 @@
 
   function newGame() {
     score = 0; wave = 0;
+    scoreSaved = ""; entry = null; sessionToken = null;
+    fetch("/api/session", { method: "POST" }).then(function (r) { return r.json(); })
+      .then(function (d) { sessionToken = d.token || null; })
+      .catch(function () {});
     enemies = []; darts = []; shrooms = []; floaters = []; slashes = []; booms = [];
     spawnQueue = []; spawnT = 0;
     resetPlayer();
@@ -717,13 +736,49 @@
     sfx.kill();
   }
   function gameOver() {
-    state = "over";
     player.hp = 0;
     if (score > hi) {
       hi = score;
       try { localStorage.setItem("wuju-hiscore", String(hi)); } catch (e) {}
     }
+    var qualifies = sessionToken && score > 0 &&
+      (!leaderboard || leaderboard.length < 10 || score > leaderboard[leaderboard.length - 1].score);
+    if (qualifies) {
+      entry = { letters: [0, 0, 0], slot: 0 };
+      for (var i = 0; i < 3; i++) {
+        var c = lastInitials.charCodeAt(i) - 65;
+        entry.letters[i] = (c >= 0 && c <= 25) ? c : 0;
+      }
+      state = "entry";
+    } else {
+      state = "over";
+    }
     sfx.over();
+  }
+
+  function entryCycle(d) {
+    if (!entry) return;
+    entry.letters[entry.slot] = (entry.letters[entry.slot] + d + 26) % 26;
+    sfx.click();
+  }
+  function entrySlot(d) {
+    if (!entry) return;
+    entry.slot = Math.max(0, Math.min(2, entry.slot + d));
+    sfx.click();
+  }
+  function submitScore() {
+    if (!entry) return;
+    var name = entry.letters.map(function (i) { return String.fromCharCode(65 + i); }).join("");
+    lastInitials = name;
+    try { localStorage.setItem("wuju-initials", name); } catch (e) {}
+    var payload = JSON.stringify({ token: sessionToken, name: name, score: score, wave: wave });
+    entry = null;
+    state = "over";
+    scoreSaved = "SAVING...";
+    fetch("/api/scores", { method: "POST", headers: { "content-type": "application/json" }, body: payload })
+      .then(function (r) { scoreSaved = r.ok ? "SAVED TO SCOREBOARD" : "REJECTED"; fetchScores(); })
+      .catch(function () { scoreSaved = "OFFLINE"; });
+    sfx.kill();
   }
   function addFloater(x, y, s) { floaters.push({ x: x, y: y, s: s, t: 0.9 }); }
 
@@ -1138,13 +1193,46 @@
     drawBG();
 
     if (state === "title") {
-      centerText("MASTER YI", 22, 2, INK);
-      centerText("THE WUJU BLADESMAN", 40, 1, MID);
-      // teemo lineup
-      for (var i = 0; i < 4; i++) drawTeemo({ x: 70 + i * 40, type: "scout", flashT: 0, fireAnim: 0, hp: 1, maxhp: 1 });
-      if (Math.floor(tGlobal * 2) % 2 === 0) centerText("PRESS START", 60, 2, INK);
-      centerText("HI " + hi, 84, 1, MID);
+      var showBoard = leaderboard && leaderboard.length > 0 && Math.floor(tGlobal / 4) % 2 === 1;
+      if (showBoard) {
+        centerText("TOP WUJU WARRIORS", 6, 1, INK);
+        var rows = Math.min(leaderboard.length, 8);
+        for (var r0 = 0; r0 < rows; r0++) {
+          var it = leaderboard[r0];
+          drawText((r0 + 1) + " " + it.name + " " + it.score, 78, 18 + r0 * 11, 1, r0 === 0 ? INK : MID);
+        }
+        if (Math.floor(tGlobal * 2) % 2 === 0) centerText("PRESS START", 112, 1, INK);
+      } else {
+        centerText("MASTER YI", 22, 2, INK);
+        centerText("THE WUJU BLADESMAN", 40, 1, MID);
+        // teemo lineup
+        for (var i = 0; i < 4; i++) drawTeemo({ x: 70 + i * 40, type: "scout", flashT: 0, fireAnim: 0, hp: 1, maxhp: 1 });
+        if (Math.floor(tGlobal * 2) % 2 === 0) centerText("PRESS START", 60, 2, INK);
+        centerText("HI " + hi, 84, 1, MID);
+      }
       centerText("WUJU LCD VER " + VERSION, 132, 1, FAINT);
+      return;
+    }
+
+    if (state === "entry") {
+      centerText("JUNGLE LEGEND!", 22, 1, INK);
+      centerText("SCORE " + score + "  WAVE " + wave, 32, 1, MID);
+      centerText("ENTER YOUR NAME", 46, 1, MID);
+      var x0 = Math.round((W - (3 * 14 - 6)) / 2);
+      for (var s3 = 0; s3 < 3; s3++) {
+        var lx = x0 + s3 * 14;
+        var active = s3 === entry.slot;
+        if (!active || Math.floor(tGlobal * 3) % 3 !== 0) {
+          drawText(String.fromCharCode(65 + entry.letters[s3]), lx, 60, 2, INK);
+        }
+        if (active) {
+          px(lx + 2, 55, 3, 1, MID); px(lx + 3, 54, 1, 1, MID);   // up caret
+          px(lx + 2, 74, 3, 1, MID); px(lx + 3, 75, 1, 1, MID);   // down caret
+        }
+        px(lx, 72, 7, 1, active ? INK : MID);
+      }
+      centerText("D-PAD PICKS LETTERS", 92, 1, FAINT);
+      if (Math.floor(tGlobal * 2) % 2 === 0) centerText("START TO SAVE", 104, 1, INK);
       return;
     }
 
@@ -1172,7 +1260,8 @@
       centerText("GAME OVER", 44, 2, INK);
       centerText("SCORE " + score, 66, 1, INK);
       centerText("HI " + hi, 76, 1, MID);
-      if (Math.floor(tGlobal * 2) % 2 === 0) centerText("PRESS START", 94, 1, INK);
+      if (scoreSaved) centerText(scoreSaved, 86, 1, MID);
+      if (Math.floor(tGlobal * 2) % 2 === 0) centerText("PRESS START", 98, 1, INK);
     }
   }
 
@@ -1185,6 +1274,8 @@
     primeHut();
     if (state === "title" || state === "over") {
       newGame();
+    } else if (state === "entry") {
+      submitScore();
     } else if (state === "play") {
       state = "pause";
     } else if (state === "pause") {
@@ -1193,6 +1284,7 @@
   }
   function pressReset() {
     sfx.click();
+    entry = null;
     state = "title";
     enemies = []; darts = []; shrooms = []; floaters = []; slashes = []; booms = [];
     spawnQueue = [];
@@ -1232,6 +1324,13 @@
     var dir = b.dataset.dir;
     function down(ev) {
       ev.preventDefault();
+      if (state === "entry") {
+        if (dir === "up") entryCycle(1);
+        else if (dir === "down") entryCycle(-1);
+        else if (dir === "left") entrySlot(-1);
+        else entrySlot(1);
+        return;
+      }
       if (dir === "left") padDir = -1;
       else if (dir === "right") padDir = 1;
       else sfx.click();
@@ -1246,6 +1345,20 @@
   window.addEventListener("keydown", function (ev) {
     var k = ev.key.toLowerCase();
     if (["arrowleft", "arrowright", "arrowup", "arrowdown", " "].indexOf(ev.key.toLowerCase()) >= 0) ev.preventDefault();
+    if (state === "entry") {
+      if (!ev.repeat) {
+        if (k === "arrowup") entryCycle(1);
+        else if (k === "arrowdown") entryCycle(-1);
+        else if (k === "arrowleft") entrySlot(-1);
+        else if (k === "arrowright") entrySlot(1);
+        else if (k === "enter") submitScore();
+        else if (/^[a-z]$/.test(k)) {
+          entry.letters[entry.slot] = k.charCodeAt(0) - 97;
+          entrySlot(1);
+        }
+      }
+      return;
+    }
     if (k === "arrowleft" || k === "a") keys.left = true;
     else if (k === "arrowright" || k === "d") keys.right = true;
     else if (!ev.repeat) {

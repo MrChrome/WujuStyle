@@ -24,10 +24,18 @@ poison mushrooms, and every 4th wave the Swift Scout arrives as a boss.
 Move with arrow keys / A,D or the on-screen D-pad. Enter starts/pauses,
 M toggles sound. Hi-score persists in localStorage. Touch-friendly.
 
+Top scores land on a global scoreboard (Tiger-style 3-initial entry on game
+over; the title screen cycles the top 10). Submissions are validated
+server-side: score must be achievable for the wave reached, timed by a
+single-use session token, and rate-limited per IP.
+
 ## Project layout
 
 - `index.html` — the whole game (single self-contained file: HTML, CSS, JS, Web Audio)
 - `audio/teemo-hut.mp3` — Teemo's "Hut, two, three, four!" voice line (Omega Squad,
   from the League of Legends Wiki), played occasionally while Teemos are on screen
-- `deploy.sh` — uploads `index.html` and `audio/` to S3 and invalidates the CloudFront cache
-- `aws/` — infrastructure reference (see below)
+- `img/` — device shell art (Bedrock-generated jungle) and the Tone cutout
+- `deploy.sh` — uploads the site to S3 and invalidates the CloudFront cache
+- `aws/` — infrastructure reference
+- `aws/scoreboard/lambda.py` — scoreboard API (DynamoDB `WujuScores` + Lambda
+  `wuju-scoreboard` + API Gateway, served through CloudFront at `/api/*`)
